@@ -1,45 +1,51 @@
-import streamlit
-import pandas
-
-
-streamlit.title('My parents new healthy diner')
-
-streamlit.header('Breakfast Menu')
-streamlit.text('Omega 3 & Blueberry Oatmeal')
-streamlit.text('Kale, Spinach & Rocket Smoothie')
-streamlit.text('Hard-Boiled Free-Range Egg')
-
-# Define my_fruit_list before using it
-my_fruit_list = pandas.read_csv("https://uni-lab-files.s3.us-west-2.amazonaws.com/dabw/fruit_macros.txt")
-
-# Let's put a pick list here so they can pick the fruit they want to include 
-fruits_selected = streamlit.multiselect("Pick some fruits:", list(my_fruit_list.index))
-
-# Display the table on the page.
-my_fruit_list = my_fruit_list.set_index('Fruit')
-fruits_to_show = my_fruit_list.loc[fruits_selected]
-streamlit.dataframe(fruits_to_show)
-
-streamlit.header("Fruityvice Fruit Advice!")
-
+import streamlit as st
+import pandas as pd
 import requests
-
-fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + "kiwi")
-streamlit.text(fruityvice_response)
-
-# write your own comment -what does the next line do? 
-fruityvice_normalized = pandas.json_normalize(fruityvice_response.json())
-# write your own comment - what does this do?
-streamlit.dataframe(fruityvice_normalized)
-
-fruit_choice = streamlit.text_input('What fruit would you like information about?','Kiwi')
-streamlit.write('The user entered ', fruit_choice)
-
 import snowflake.connector
 
-my_cnx = snowflake.connector.connect(**streamlit.secrets["snowflake"])
+# Title and header
+st.title('My parents\' new healthy diner')
+st.header('Breakfast Menu')
+st.text('Omega 3 & Blueberry Oatmeal')
+st.text('Kale, Spinach & Rocket Smoothie')
+st.text('Hard-Boiled Free-Range Egg')
+
+# Read fruit list from URL
+my_fruit_list = pd.read_csv("https://uni-lab-files.s3.us-west-2.amazonaws.com/dabw/fruit_macros.txt")
+
+# Select fruits
+fruits_selected = st.multiselect("Pick some fruits:", list(my_fruit_list['Fruit']))
+
+# Filter and display selected fruits
+fruits_to_show = my_fruit_list[my_fruit_list['Fruit'].isin(fruits_selected)]
+st.dataframe(fruits_to_show.set_index('Fruit'))
+
+# Fruityvice Fruit Advice
+fruit_choice = st.text_input('What fruit would you like information about?', 'Kiwi')
+fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_choice.lower())
+fruityvice_normalized = pd.json_normalize(fruityvice_response.json())
+st.dataframe(fruityvice_normalized)
+
+# Snowflake integration
+st.header("Snowflake Integration")
+
+# Connect to Snowflake using credentials from Streamlit secrets
+snowflake_credentials = st.secrets["snowflake"]
+my_cnx = snowflake.connector.connect(**snowflake_credentials)
 my_cur = my_cnx.cursor()
-my_cur.execute("SELECT CURRENT_USER(), CURRENT_ACCOUNT(), CURRENT_REGION()")
-my_data_row = my_cur.fetchone()
-streamlit.text("Hello from Snowflake:")
-streamlit.text(my_data_row)
+
+# Fetch and display data from Snowflake
+my_cur.execute("SELECT * FROM pc_rivery_db.public.fruit_load_list")
+my_data_rows = my_cur.fetchall()
+st.header("Fruit Load List")
+st.dataframe(pd.DataFrame(my_data_rows, columns=my_cur.description))
+
+# Insert data into Snowflake
+add_my_fruit = st.text_input("Add a fruit to the load list:")
+if st.button("Add Fruit"):
+    my_cur.execute(f"INSERT INTO fruit_load_list VALUES ('{add_my_fruit}')")
+    st.write('Thanks for adding', add_my_fruit)
+
+# Close Snowflake connection
+my_cur.close()
+my_cnx.close()
