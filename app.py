@@ -20,12 +20,6 @@ fruits_selected = st.multiselect("Pick some fruits:", list(my_fruit_list['Fruit'
 fruits_to_show = my_fruit_list[my_fruit_list['Fruit'].isin(fruits_selected)]
 st.dataframe(fruits_to_show.set_index('Fruit'))
 
-# Fruityvice Fruit Advice
-fruit_choice = st.text_input('What fruit would you like information about?', 'Kiwi')
-fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_choice.lower())
-fruityvice_normalized = pd.json_normalize(fruityvice_response.json())
-st.dataframe(fruityvice_normalized)
-
 # Snowflake integration
 st.header("Snowflake Integration")
 
@@ -49,3 +43,21 @@ if st.button("Add Fruit"):
 # Close Snowflake connection
 my_cur.close()
 my_cnx.close()
+
+# Fruityvice Fruit Advice function
+def get_fruityvice_data():
+    try:
+        st.header("Fruityvice Fruit Advice!")
+        fruit_choice = st.text_input('What fruit would you like information about?', 'Kiwi')
+        if st.button("Get Advice"):
+            fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_choice.lower())
+            if fruityvice_response.status_code == 200:
+                fruityvice_normalized = pd.json_normalize(fruityvice_response.json())
+                st.dataframe(fruityvice_normalized)
+            else:
+                st.write("Unable to fetch fruit advice.")
+    except requests.exceptions.RequestException as e:
+        st.write("Error occurred while fetching fruit advice:", str(e))
+
+# Call the function
+get_fruityvice_data()
